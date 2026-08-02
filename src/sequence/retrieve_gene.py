@@ -3,7 +3,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-Entrez.email = "017930msbis26@iiu.edu.pk"
+Entrez.email = ""
 
 # Taking Input from User
 gene = input("Enter gene symbol: ")
