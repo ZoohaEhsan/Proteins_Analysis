@@ -1,37 +1,43 @@
 from Bio import Entrez
-Entrez.email = '017930msbis26@iiu.edu.pk'
-
-# Searching NCBI  for Hemoglobin Protein Ids
-handle = Entrez.esearch(
-    db='protein',
-    term='Hemoglobin[Protein Name] AND Homo sapiens[Organism]',
-)
-record = Entrez.read(handle)
-handle.close()
-print(record)
-for ID in record["IdList"]:
-    print('Retrieved Id:', ID)
-
-protein_id = record["IdList"][0]
-print('Selected Protein Id:', protein_id)
-
-# Fetching FASTA Sequence for selected Protein Id
-handle = Entrez.efetch(
-    db = 'protein',
-    id = protein_id,
-    rettype = 'fasta',
-    retmode = 'text')
-pro_rec = handle.read()
-handle.close()
-print('Retrieved Protein Record:', pro_rec)
-
-# Saving protein FASTA sequence
-with open("../../protein.fasta", "w") as file:
-    file.write(pro_rec)
-
-# Parse FASTA Using SeqIO
 from Bio import SeqIO
-record = SeqIO.read( "../../protein.fasta","fasta")
-print('Protein Sequence:', record.seq)
-print('Sequence Length:', len(record.seq))
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+dna = SeqIO.read(genbank_file, "genbank")
 
+print("\nNucleotide Information")
+print("------------------------------")
+print("Accession :", dna.id)
+print("Description :", dna.description)
+print("Organism :", dna.annotations["organism"])
+print("Length :", len(dna.seq), "bp")
+
+# Extract Protein Information
+protein_accession = ""
+protein_name = ""
+protein_sequence = ""
+
+for feature in dna.features:
+    if feature.type == "CDS":
+        protein_accession = feature.qualifiers.get("protein_id", ["Unknown"])[0]
+        protein_name = feature.qualifiers.get("product", ["Unknown"])[0]
+        protein_sequence = feature.qualifiers.get("translation", [""])[0]
+        break
+
+print("\nProtein Information")
+print("------------------------------")
+print("Protein Accession :", protein_accession)
+print("Protein Name :", protein_name)
+print("Protein Length :", len(protein_sequence), "aa")
+print("First 100 Amino Acids:")
+print(protein_sequence[:100])
+
+# Save Protein FASTA
+protein_record = SeqRecord(
+    Seq(protein_sequence),
+    id=protein_accession,
+    description=protein_name
+)
+
+protein_file = f"{gene}_protein.fasta"
+SeqIO.write(protein_record, protein_file, "fasta")
+print(f"\nProtein sequence saved to '{protein_file}'.")

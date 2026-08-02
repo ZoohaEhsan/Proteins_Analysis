@@ -24,7 +24,6 @@ if not record["IdList"]:
     print("\nNo articles found for the given search term.")
     exit()
 
-
 pmids = record["IdList"]
 handle = Entrez.efetch(
     db="pubmed",
