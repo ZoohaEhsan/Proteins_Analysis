@@ -1,153 +1,43 @@
-from Bio import Entrez
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
+from sequence.retrieve_gene_data import retrieve_gene_data
+from sequence.search_uniprot import search_uniprot
+from structure.download_pdb import download_pdb
+from structure.structure_reader import read_structure
+from structure.structure_menu import structure_menu
+import csv
 
-Entrez.email = "017930msbis26@iiu.edu.pk"
+results = []
 
-# Taking Input from User
-gene = input("Enter gene symbol: ")
-organism = input("Enter organism (e.g., Homo sapiens): ")
-max_results = input("Enter the number of records to retrieve (Press Enter for 5): ")
+# STEP 1: Collecting sequence information
+result = retrieve_gene_data()
+if result is not None:
+    gene, protein_accession, protein_name, protein_file = result
 
-if max_results == "":
-    max_results = 5
-else:
-    max_results = int(max_results)
+# STEP 2: Uniprot searching
+    result = search_uniprot(protein_accession)
+    if result is not None:
+        uniprot_id, pdb_id = result
+        print("UniProt ID:", uniprot_id)
+        print("Selected PDB:", pdb_id)
 
-query = f"{gene}[Gene] AND {organism}[Organism]"
-
-# Search NCBI
-handle = Entrez.esearch(
-    db="nucleotide",
-    term=query,
-    retmax=max_results
-)
-record = Entrez.read(handle)
-handle.close()
-
-print("Total Matching Records:", record["Count"])
-print("Retrieved Records:", len(record["IdList"]))
-
-if not record["IdList"]:
-    print("No records found.")
+#Step 3: Downloading PDB file
+pdb_file = download_pdb(pdb_id)
+if pdb_file is None:
+    print("Unable to continue because the PDB file could not be downloaded.")
     exit()
 
-ids = record["IdList"]
-print("\nAvailable Records:\n")
+# Step 4: Read Structure
+structure, title = read_structure(pdb_file)
+print("\nStructure Title:")
+print(title)
+structure_menu(structure, results)
 
-for i, nucleotide_id in enumerate(ids, start=1):
-    handle = Entrez.efetch(
-        db="nucleotide",
-        id=nucleotide_id,
-        rettype="fasta",
-        retmode="text"
-    )
-    fasta = handle.read()
-    handle.close()
-
-    header = fasta.split("\n")[0]
-    print(f"{i}. {header}")
-
-# User selects a record
-choice = int(input("\nSelect a record number: "))
-selected_id = ids[choice - 1]
-
-print("\nSelected Nucleotide ID:", selected_id)
-
-# Retrieve GenBank Record
-handle = Entrez.efetch(
-    db="nucleotide",
-    id=selected_id,
-    rettype="gb",
-    retmode="text"
-)
-
-genbank_text = handle.read()
-handle.close()
-
-# Save GenBank Record
-genbank_file = f"{gene}.gb"
-with open(genbank_file, "w") as file:
-    file.write(genbank_text)
-print("\nGenBank record saved successfully.")
-
-# Read GenBank Record
-dna = SeqIO.read(genbank_file, "genbank")
-
-print("\nNucleotide Information")
-print("------------------------------")
-print("Accession :", dna.id)
-print("Description :", dna.description)
-print("Organism :", dna.annotations["organism"])
-print("Length :", len(dna.seq), "bp")
-
-# Extract Protein Information
-protein_accession = ""
-protein_name = ""
-protein_sequence = ""
-
-for feature in dna.features:
-    if feature.type == "CDS":
-        protein_accession = feature.qualifiers.get("protein_id", ["Unknown"])[0]
-        protein_name = feature.qualifiers.get("product", ["Unknown"])[0]
-        protein_sequence = feature.qualifiers.get("translation", [""])[0]
-        break
-
-print("\nProtein Information")
-print("------------------------------")
-print("Protein Accession :", protein_accession)
-print("Protein Name :", protein_name)
-print("Protein Length :", len(protein_sequence), "aa")
-print("First 100 Amino Acids:")
-print(protein_sequence[:100])
-
-# Save Protein FASTA
-protein_record = SeqRecord(
-    Seq(protein_sequence),
-    id=protein_accession,
-    description=protein_name
-)
-
-protein_file = f"{gene}_protein.fasta"
-SeqIO.write(protein_record, protein_file, "fasta")
-print(f"\nProtein sequence saved to '{protein_file}'.")
-
-# Protein Information
-print("\nNucleotide Information")
-print("------------------------------")
-print("Accession :", dna.id)
-print("Description :", dna.description)
-print("Organism :", dna.annotations["organism"])
-print("Length :", len(dna.seq), "bp")
-
-# Extract Protein Information
-protein_accession = ""
-protein_name = ""
-protein_sequence = ""
-
-for feature in dna.features:
-    if feature.type == "CDS":
-        protein_accession = feature.qualifiers.get("protein_id", ["Unknown"])[0]
-        protein_name = feature.qualifiers.get("product", ["Unknown"])[0]
-        protein_sequence = feature.qualifiers.get("translation", [""])[0]
-        break
-
-print("\nProtein Information")
-print("------------------------------")
-print("Protein Accession :", protein_accession)
-print("Protein Name :", protein_name)
-print("Protein Length :", len(protein_sequence), "aa")
-print("First 100 Amino Acids:")
-print(protein_sequence[:100])
-
-# Save Protein FASTA
-protein_record = SeqRecord(
-    Seq(protein_sequence),
-    id=protein_accession,
-    description=protein_name
-)
-
-protein_file = f"{gene}_protein.fasta"
-SeqIO.write(protein_record, protein_file, "fasta")
-print(f"\nProtein sequence saved to '{protein_file}'.")
+#Step 5: Export Results of step 4 to csv
+results_file = f"{gene}_analysis_results.csv"
+with open(results_file, "w", newline="", encoding="utf-8-sig") as file:
+    writer = csv.DictWriter(file, fieldnames=["Analysis", "Result"])
+    writer.writeheader()
+    writer.writerows(results)
+    print(
+            f"\nAnalysis results saved to "
+            f"'{results_file}'."
+        )
