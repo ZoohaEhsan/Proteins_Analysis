@@ -3,7 +3,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-Entrez.email = "017930msbis26@iiu.edu.pk"
+Entrez.email = "enter email"
 
 def retrieve_gene_data():
 
