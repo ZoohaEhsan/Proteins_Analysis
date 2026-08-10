@@ -1,5 +1,5 @@
 from Bio import Entrez
-Entrez.email = "017930msbis26@iiu.edu.pk"
+Entrez.email = "enter email"
 
 # User input
 search_term = input("Enter a disease, gene, or keyword: ")
